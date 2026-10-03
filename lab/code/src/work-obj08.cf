@@ -1,7 +1,0 @@
-v 4
-file . "taus88_top.vhd" "cf382a5c30e76d087f1845173abba15297c7e005" "20261003211154.682":
-  entity taus88_top at 1( 0) + 0 on 17;
-  architecture behavioral of taus88_top at 12( 214) + 0 on 18;
-file . "taus88.vhd" "5c3a4635727fc7b3c6c3b7328d5e7c353bd79bd4" "20261003211150.839":
-  entity taus88 at 1( 0) + 0 on 15;
-  architecture behavioral of taus88 at 19( 453) + 0 on 16;
