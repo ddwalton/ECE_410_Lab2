@@ -24,7 +24,7 @@ Plenty of real-world applications use FSMs, as they mathematically describe the 
 
 ![alt text](images/tgen_bd.png)
 
-## Part 3:
+## Part 3: Secure Element Chip FSM State Diagram
 
 The following is the state diagram for the FSM of the secure element chip, a Moore machine was chosen as more appropriate way of modelling the given task, as the output `RGB[2:0]` bit vector is dependent only the current state, and not dependent on any of the inputs at the same time. A Mealy machine does not feedforward the inputs to the combinational block determining the outputs, the inputs only determine the state-to-state transitions.
 
