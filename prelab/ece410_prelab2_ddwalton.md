@@ -21,9 +21,12 @@ Plenty of real-world applications use FSMs, as they mathematically describe the 
 5. Traffic lights (Red/green, yellow/red, green/red, flashing red)
 
 ## Part 2: Pseudo-Random Number Generator Block Diagram
-> Draw a block diagram for the top-level entity of the pseudo-random number generator from Part 1.
 
 ![alt text](images/tgen_bd.png)
 
 ## Part 3:
-> Draw the state diagram representing a Finite State Machine (FSM) for the secure element chip from Part 2, clearly showing the transitions between states along with their input and output conditions. Decide whether a Mealy or Moore FSM is more appropriate for this model, and briefly justify your choice.
+
+The following is the state diagram for the FSM of the secure element chip, a Moore machine was chosen as more appropriate way of modelling the given task, as the output `RGB[2:0]` bit vector is dependent only the current state, and not dependent on any of the inputs at the same time. A Mealy machine does not feedforward the inputs to the combinational block determining the outputs, the inputs only determine the state-to-state transitions.
+
+![alt text](images/FSM.png)
+
