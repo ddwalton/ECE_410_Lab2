@@ -47,6 +47,7 @@ BEGIN
 
         -- startup
         WAIT FOR clk_period;
+        startup <= '0';
         
         -- go into ALARM_STATE
         rst <= '0';
@@ -70,19 +71,19 @@ BEGIN
         sleep <= '1';
 
         WAIT FOR clk_period;
+        sleep <= '0';
 
         -- go into IDLE_STATE again
-        sleep <= '0';
         request <= '1';
 
         WAIT FOR clk_period;
+        request <= '0';
 
         -- go into ALARM_STATE from IDLE_STATE
         attack_detected <= '1';
 
         WAIT FOR clk_period;
-
-        attack_detected <= '0';
+        attack_detected <= '0'; -- De-assert attack
         rst <= '1';
         
         WAIT FOR clk_period;
@@ -97,6 +98,7 @@ BEGIN
         -- go into SECURE_STATE
         secure_channel <= '1';
 
+        WAIT FOR clk_period;
         WAIT;
     END PROCESS test_signals;
 END ARCHITECTURE test;
