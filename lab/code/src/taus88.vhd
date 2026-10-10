@@ -1,5 +1,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
 ENTITY taus88 IS
     GENERIC (
@@ -28,10 +29,15 @@ BEGIN
                 -- synchronous reset
                 reg <= g_SEED;
             ELSE 
-                -- else 
-                reg <= (((reg SLL g_SHIFT1) XOR reg) SRL g_SHIFT2) 
-                    XOR 
-                    ((reg AND g_MASK) SLL g_SHIFT3);
+--              the code below implements
+--              reg <= (((reg SLL g_SHIFT1) XOR reg) SRL g_SHIFT2) 
+--                     XOR
+--                     ((reg AND g_MASK) SLL g_SHIFT3);
+                reg <= std_logic_vector(
+                            shift_right(unsigned((std_logic_vector(shift_left(unsigned(reg), g_SHIFT1)) XOR reg)), g_SHIFT2)
+                            XOR
+                            shift_left(unsigned(reg AND g_MASK), g_SHIFT3)
+                        );
             END IF;
         END IF;
     END PROCESS shift_xor_mask;

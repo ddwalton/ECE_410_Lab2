@@ -17,47 +17,54 @@ ENTITY secure_element_fsm IS
 END ENTITY secure_element_fsm;
 
 ARCHITECTURE Behavioral OF secure_element_fsm IS
-    TYPE STATE_t IS (STARTUP, IDLE, SECURE, SLEEP, ALARM);
-    SIGNAL state : STATE_t := STARTUP;
+    TYPE STATE_t IS (STARTUP_STATE, IDLE_STATE, SECURE_STATE, SLEEP_STATE, ALARM_STATE);
+    SIGNAL state : STATE_t := STARTUP_STATE;
 BEGIN
     WITH state SELECT 
     rgb <=
-        "001" WHEN STARTUP, -- blue
-        "010" WHEN SECURE,  -- green
-        "100" WHEN ALARM,   -- red
-        "110" WHEN IDLE,    -- yellow
-        "111" WHEN SLEEP,   -- white
-        "000" WHEN OTHERS;  -- shouldn't be others  
+        "001" WHEN STARTUP_STATE, -- blue
+        "010" WHEN SECURE_STATE,  -- green
+        "100" WHEN ALARM_STATE,   -- red
+        "110" WHEN IDLE_STATE,    -- yellow
+        "111" WHEN SLEEP_STATE,   -- white
+        "000" WHEN OTHERS;        -- shouldn't be others  
     
     transition : PROCESS(clk)
     BEGIN
         IF (rising_edge(clk)) THEN
             IF rst = '1' THEN
-                state <= STARTUP;
+                state <= STARTUP_STATE;
             ELSE
-                IF (state = STARTUP) THEN 
-                    IF (self_test = '1' AND busy = '0') THEN
-                        state <= IDLE;
-                    ELSIF (self_test = '0' AND busy = '0') THEN
-                        state <= ALARM;
-                    -- ELSE stay STARTUP
+                IF (state = STARTUP_STATE) THEN 
+                    IF ((self_test = '0' AND busy = '0') OR (attack_detected = '1')) THEN
+                        state <= ALARM_STATE;
+                    ELSIF (self_test = '1' AND busy = '0') THEN
+                        state <= IDLE_STATE;
                     END IF;
-                ELSIF (state = IDLE) THEN
+                ELSIF (state = IDLE_STATE) THEN
                     IF (attack_detected = '1') THEN
-                        state <= ALARM;
+                        state <= ALARM_STATE;
                     ELSIF (secure_channel = '1') THEN
-                        state <= SECURE;
+                        state <= SECURE_STATE;
                     ELSIF (startup = '1')  THEN
-                        state <= STARTUP;
+                        state <= STARTUP_STATE;
                     ELSIF (sleep = '1') THEN
-                        state <= SLEEP;
-                    -- ELSE stay IDLE
+                        state <= SLEEP_STATE;
                     END IF;
-                ELSIF (state = SLEEP) THEN
+                ELSIF (state = SLEEP_STATE) THEN
                     IF (request = '1') THEN
-                        state <= IDLE;
+                        state <= IDLE_STATE;
                     END IF;
-                -- ALARM and SECURE have no transitions
+                ELSIF (state = SECURE_STATE) then
+                    IF (attack_detected = '1') THEN
+                        state <= ALARM_STATE;
+                    ELSIF (sleep = '1') THEN
+                        state <= SLEEP_STATE;
+                    ELSIF (secure_channel = '0') THEN
+                        state <= IDLE_STATE;
+                        -- go back to idle
+                    END IF;
+                -- ALARM_STATE has no transitions (terminal state)
                 END IF;
             END IF;
         END IF;
