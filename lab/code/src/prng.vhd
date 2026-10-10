@@ -1,15 +1,15 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
-ENTITY taus88_top IS
+ENTITY prng IS
     PORT (
         clk  : IN STD_LOGIC;
         rst  : IN STD_LOGIC;
         dout : OUT STD_LOGIC_VECTOR(31 DOWNTO 0)
     );
-END ENTITY taus88_top;
+END ENTITY prng;
 
-ARCHITECTURE Behavioral OF taus88_top IS
+ARCHITECTURE Behavioral OF prng IS
     CONSTANT c_ID : STD_LOGIC_VECTOR(15 DOWNTO 0) := x"1090";
 
     SIGNAL reg1, reg2, reg3 : STD_LOGIC_VECTOR(31 DOWNTO 0);
