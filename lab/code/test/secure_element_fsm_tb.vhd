@@ -122,6 +122,45 @@ BEGIN
 
         WAIT FOR clk_period;
         assert rgb = "010" report "test 12: transition idle -> secure. should be in secure (rgb = 010)" severity error;
+
+        -- go into sleep_state from secure_state
+        sleep <= '1';
+
+        WAIT FOR clk_period;
+        assert rgb = "111" report "test 13: transition secure -> sleep. should be in sleep (rgb = 111)" severity error;
+        sleep <= '0';
+
+        -- return to idle_state then secure_state
+        request <= '1';
+
+        WAIT FOR clk_period;
+        assert rgb = "110" report "test 14: transition sleep -> idle. should be in idle (rgb = 110)" severity error;
+        request <= '0';
+        
+        secure_channel <= '1';
+
+        WAIT FOR clk_period;
+        assert rgb = "010" report "test 15: transition idle -> secure. should be in secure (rgb = 010)" severity error;
+
+        -- go into idle_state from secure_state
+        secure_channel <= '0';
+
+        WAIT FOR clk_period;
+        assert rgb = "110" report "test 16: transition secure -> idle. should be in idle (rgb = 110)" severity error;
+
+        -- return to secure_state
+        secure_channel <= '1';
+
+        WAIT FOR clk_period;
+        assert rgb = "010" report "test 17: transition idle -> secure. should be in secure (rgb = 010)" severity error;
+
+        -- go into alarm_state from secure_state
+        attack_detected <= '1';
+
+        WAIT FOR clk_period;
+        assert rgb = "100" report "test 18: transition secure -> alarm. should be in alarm (rgb = 100)" severity error;
+        attack_detected <= '0';
+
         WAIT;
     END PROCESS test_signals;
 END ARCHITECTURE test;
