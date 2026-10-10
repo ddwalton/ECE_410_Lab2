@@ -47,58 +47,81 @@ BEGIN
 
         -- startup
         WAIT FOR clk_period;
+        assert rgb = "001" report "test 1: transition rst -> startup. should be in startup (rgb = 001)" severity error;
         startup <= '0';
         
-        -- go into ALARM_STATE
+        -- go into alarm_state
         rst <= '0';
         self_test <= '0';
         busy <= '0';
 
         WAIT FOR clk_period;
+        assert rgb = "100" report "test 2: transition startup -> alarm. should be in alarm (rgb = 100)" severity error;
         
         rst <= '1';
         
         WAIT FOR clk_period;
+        assert rgb = "001" report "test 3: transition alarm -> startup. should be in startup (rgb = 001)" severity error;
 
-        -- go into IDLE_STATE
+        -- go into idle_state
         rst <= '0';
         self_test <= '1';
         busy <= '0';
 
         WAIT FOR clk_period;
+        assert rgb = "110" report "test 4: transition startup -> idle. should be in idle (rgb = 110)" severity error;
 
-        -- go into SLEEP_STATE
+        -- go into sleep_state (from idle)
         sleep <= '1';
 
         WAIT FOR clk_period;
+        assert rgb = "111" report "test 5: transition idle -> sleep. should be in sleep (rgb = 111)" severity error;
         sleep <= '0';
 
-        -- go into IDLE_STATE again
+        -- go into idle_state again
         request <= '1';
 
         WAIT FOR clk_period;
+        assert rgb = "110" report "test 6: transition sleep -> idle. should be in idle (rgb = 110)" severity error;
         request <= '0';
 
-        -- go into ALARM_STATE from IDLE_STATE
+        -- go into startup_state from idle_state
+        startup <= '1';
+        
+        WAIT FOR clk_period;
+        assert rgb = "001" report "test 7: transition idle -> startup. should be in startup (rgb = 001)" severity error;
+        startup <= '0';
+
+        -- return to idle_state
+        self_test <= '1';
+        
+        WAIT FOR clk_period;
+        assert rgb = "110" report "test 8: transition startup -> idle. should be in idle (rgb = 110)" severity error;
+
+        -- go into alarm_state from idle_state
         attack_detected <= '1';
 
         WAIT FOR clk_period;
-        attack_detected <= '0'; -- De-assert attack
+        assert rgb = "100" report "test 9: transition idle -> alarm. should be in alarm (rgb = 100)" severity error;
+        attack_detected <= '0'; -- de-assert attack
         rst <= '1';
         
         WAIT FOR clk_period;
+        assert rgb = "001" report "test 10: transition alarm -> startup. should be in startup (rgb = 001)" severity error;
 
-        -- go into IDLE_STATE
+        -- go into idle_state
         rst <= '0';
         self_test <= '1';
         busy <= '0';
 
         WAIT FOR clk_period;
+        assert rgb = "110" report "test 11: transition startup -> idle. should be in idle (rgb = 110)" severity error;
 
-        -- go into SECURE_STATE
+        -- go into secure_state from idle_state
         secure_channel <= '1';
 
         WAIT FOR clk_period;
+        assert rgb = "010" report "test 12: transition idle -> secure. should be in secure (rgb = 010)" severity error;
         WAIT;
     END PROCESS test_signals;
 END ARCHITECTURE test;
