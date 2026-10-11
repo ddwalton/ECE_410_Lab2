@@ -23,16 +23,17 @@ entity fsm_driver is
 end entity fsm_driver;
 
 architecture fsm_driver_behavioral of fsm_driver is
-    signal wakeup : STD_LOGIC := '0';
-    signal clk_1hz : STD_LOGIC := clk;
-    signal rgb_fsm_out : STD_LOGIC_VECTOR(2 downto 0) := "000";
-    signal count : UNSIGNED(3 downto 0)  := "1111";
+    signal wakeup       : STD_LOGIC := '0';
+    signal clk_1hz      : STD_LOGIC := '0';
+    signal clk_1hz_prev : STD_LOGIC := '0'; -- for edge detection
+    signal rgb_fsm_out  : STD_LOGIC_VECTOR(2 downto 0) := "000";
+    signal count        : UNSIGNED(3 downto 0)  := "1111";
 begin
     count_out <= count;
 
-    fsm_async : entity WORK.secure_element_fsm(Behavioral)
+    fsm_async : entity WORK.secure_element_fsm_async(Behavioral)
         port map (
-            clk => (clk or rst), -- gate the fsm's clk to make it asynchronous
+            clk => clk,
             rst => rst,
             busy => busy,
             self_test => self_test,
@@ -44,7 +45,7 @@ begin
             rgb => rgb_fsm_out
         );
 
-    clk_divider : entity WORK.clk_div(clk_divider)
+    clk_divider_inst : entity WORK.clock_divider(Behavioral)
         generic map (
             freq_in => g_CLK_FREQ_HZ,
             freq_out => 1 -- 1 Hz out
@@ -54,35 +55,46 @@ begin
             clock_div => clk_1hz
         );
 
-    flash_red_and_countdown : process(clk_1hz)
+    flash_red_and_countdown : process(clk, rst)
     begin
-        -- flash red in ALARM_STATE (rgb_fsm_out = '100')
-        if (rgb_fsm_out = "100") then
-            if (rising_edge(clk_1hz)) then
-                rgb <= "100"; -- output is RED for clk_1hz = 1
-            elsif (falling_edge(clk_1hz)) then
-                rgb <= "000"; -- output is OFF for clk_1hz = 0
-            end if;
-        -- countdown in SECURE_STATE (rgb_fsm_out = '010')
-        elsif (rgb_fsm_out = "010") then
-            if (rising_edge(clk_1hz)) then
-                if (count = "0000") then   
-                    -- wakeup the chip on count = 0                 
-                    wakeup <= '1'; 
-                    count <= "1111"; -- reset back to 15
-                else
-                    -- else, continue counting down
-                    count <= count - 1;
-                end if ;
-            end if;
-        else
-            -- not updated at g_CLK_FREQ_HZ? (might change)
-            
-            -- rgb is the normal output of the fsm
-            rgb <= rgb_fsm_out;
+        if rst = '1' then
+            -- async reset
+            rgb <= "000";
+            count <= "1111";
             wakeup <= '0';
-            -- reset count
-            count <= "1111"; 
+            clk_1hz_prev <= '0';
+        elsif rising_edge(clk) then
+            -- Default assignments
+            wakeup <= '0'; 
+            clk_1hz_prev <= clk_1hz;
+            
+            -- ALARM_STATE: flash red using the 1Hz signal level
+            if (rgb_fsm_out = "100") then 
+                if (clk_1hz = '1') then
+                    rgb <= "100";
+                else
+                    rgb <= "000";
+                end if;
+                count <= "1111"; -- keep reset
+
+            elsif (rgb_fsm_out = "111") then 
+                -- SLEEP_STATE: count down on 1Hz rising edge
+                rgb <= "111";
+                
+                if (clk_1hz = '1' and clk_1hz_prev = '0') then
+                    if (count = "0000") then   
+                        wakeup <= '1'; 
+                        count <= "1111"; 
+                    else
+                        count <= count - 1;
+                    end if;
+                end if;
+
+            else
+                --  output the fsm's intended color
+                rgb <= rgb_fsm_out;
+                count <= "1111"; 
+            end if;
         end if;
     end process flash_red_and_countdown;
 end architecture fsm_driver_behavioral; 
