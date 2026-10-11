@@ -40,20 +40,13 @@ entity fsm_top is
         attack_detected : IN STD_LOGIC;
         
         --- LEDs
-        led6_r          : OUT STD_LOGIC;
-        led6_g          : OUT STD_LOGIC;
-        led6_b          : OUT STD_LOGIC
+        rgb             : OUT STD_LOGIC_VECTOR(2 DOWNTO 0)
     );
 end fsm_top;
 
 architecture Structural of fsm_top is
     SIGNAL clk_out  : STD_LOGIC;
-    SIGNAL rgb   : STD_LOGIC_VECTOR(2 DOWNTO 0);
 begin
-    led6_r <= rgb(2);
-    led6_g <= rgb(1);
-    led6_b <= rgb(0);
-
     manual_clock : ENTITY WORK.manual_clock(Behavioral) PORT MAP (clock => clock, btn => btn, clk_out => clk_out);
     fsm : ENTITY WORK.secure_element_fsm(Behavioral) 
         PORT MAP (
