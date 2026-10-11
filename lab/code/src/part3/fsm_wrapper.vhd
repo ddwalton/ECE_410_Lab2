@@ -2,7 +2,7 @@ library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
-entity fsm_driver is
+entity fsm_wrapper is
     generic (
         g_CLK_FREQ_HZ : INTEGER := 125_000_000
     );
@@ -20,9 +20,9 @@ entity fsm_driver is
         rgb             : OUT STD_LOGIC_VECTOR(2 downto 0) := "000";
         count_out       : OUT UNSIGNED(3 downto 0) -- 4 bits -> max = 15
     );
-end entity fsm_driver;
+end entity fsm_wrapper;
 
-architecture fsm_driver_behavioral of fsm_driver is
+architecture fsm_wrapper_behavioral of fsm_wrapper is
     signal wakeup       : STD_LOGIC := '0';
     signal clk_1hz      : STD_LOGIC := '0';
     signal clk_1hz_prev : STD_LOGIC := '0'; -- for edge detection
@@ -97,4 +97,4 @@ begin
             end if;
         end if;
     end process flash_red_and_countdown;
-end architecture fsm_driver_behavioral; 
+end architecture fsm_wrapper_behavioral; 
