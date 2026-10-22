@@ -14,13 +14,15 @@ entity black_box is
 end black_box;
 
 architecture rtl of black_box is
-    constant 
+    -- max value to count to for debouncing logic
+    constant c_COUNT_MAX : natural := 125_000_000 / 10;
 
     signal curr_state : std_logic_vector(2 downto 0) := "000";
     signal next_state : std_logic_vector(2 downto 0) := "001";
     signal slow_clk_en : std_logic := '0'; -- for debouncing clk_en
     signal last_slow_clk_en : std_logic := '0';
     
+    -- double-flop sync
     signal sync_0 : std_logic := '0'; -- synchronizer stage 0
     signal sync_1 : std_logic := '0'; -- synchronizer stage 1
 begin
@@ -55,7 +57,7 @@ begin
             
             -- counter-based debounce filter
             if (sync_1 /= slow_clk_en) then
-                if (count < 12_500_000) then
+                if (count < c_COUNT_MAX) then
                     count := count + 1;
                 else
                     slow_clk_en <= sync_1;
