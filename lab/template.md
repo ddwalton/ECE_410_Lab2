@@ -6,6 +6,20 @@ CCIDs: ddwalton, ahoushya
 
 Lab Section: D31
 
+## Questions
+1. What was the biggest obstacle you had to overcome while working on this lab, and how did you resolve it?
+2. Compare the testing process using the logic analyzer with the behavioral simulation. How did the real-time
+testing with the AD2 differ from the purely simulated environment, and what are the key benefits of using
+the AD2/AD3 for testing your design? Were there any specific challenges or insights you gained from this
+hands-on testing that were not apparent during simulation?
+3. Propose potential enhancements to the pseudo random number generator design from Part 1, and briefly
+justify each enhancement in 1 or 2 sentences.
+4. Suggest other possible upgrades that could be added to the secure element to improve its functionality or
+safety. Provide a brief explanation for each suggestion.
+5. What trade-offs did you consider when deciding whether to use a Mealy or Moore FSM for the secure
+element? How did this decision impact your design?
+
+
 ## Abstract
 > Provide a summary of the lab objectives, design approach, and key results. The abstract should be no more than 150 words.
 
