@@ -23,11 +23,23 @@ element? How did this decision impact your design?
 ## Abstract
 > Provide a summary of the lab objectives, design approach, and key results. The abstract should be no more than 150 words.
 
+In this lab, we design, tested, and implement a pseudo-random number generator using a the Tausworthe generator architecture. Then, we design, tested, and implemented a 7-input, 3-output (RGB LED), 5-state Moore finite state machine (FSM) for a secure element chip. After creating the 5-state secure element FSM, it was enhanced by making the Zybo-Z7 development board flash a red on the RGB LED at 5 Hz in `ALARM_STATE`, and adding a 15-second wake-up timer to the sleep state, in which it would automatically go into the `IDLE_STATE` from `SLEEP_STATE`. Finally, a Mealy FSM was reverse engineered from a bitstream and reimplemented in VHDL.
+
+> TODO: Results?
+
 ## Design
 > Provide detailed explanation of your design process, including the following components:
 
 ### Calculations/Assumptions
 > Clearly state any calculations performed and assumptions made during the design process.
+
+#### Secure Element FSM Assumptions
+
+For the secure element FSM, it was assumed that any state (aside from `SLEEP_STATE`) immediately goes into `ALARM_STATE` once `attack_detected` is asserted. Additionally, it was assumed that `ALARM_STATE > SECURE_STATE > STARTUP_STATE > SLEEP_STATE` in terms of precedence (i.e., if each signal were asserted at the same time, the FSM would go into `ALARM_STATE`). Finally, it was assumed that the `SLEEP_STATE` can only be left by asserting `request`, where it transitions into `IDLE_STATE`. 
+
+#### Black Box Assumptions
+
+For the "black box," it was assumed that the original code operated as a Mealy machine (inputs and state in conjunction controlling the current state). Although mathematically analogous, the Mealy implementation was far simpler to implement than a Moore machine due to the number of states it would require.
 
 ### Flowchart of the Design
 > Include a flowchart that illustrates the overall design process or logic flow of your system.
