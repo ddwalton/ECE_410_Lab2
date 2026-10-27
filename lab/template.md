@@ -59,6 +59,27 @@ For the "black box," it was assumed that the original code operated as a Mealy m
 
 ![alt text](images/black_box_fsm.png)
 
+#### Black Box Truth Table
+
+| Current State (`curr_state`) | Input (`data_in`) / `SW0` = `LD0`| Next State (`next_state`) / `LD[1:3]` | Output (`seq_detected`) |
+| --- | --- | --- | --- |
+| 000 | 0 | 001 | 0 |
+| 000 | 1 | 000 | 0 |
+| 001 | 0 | 010 | 0 |
+| 001 | 1 | 011 | 0 |
+| 010 | 0 | 100 | 0 |
+| 010 | 1 | 011 | 0 |
+| 011 | 0 | 101 | 0 |
+| 011 | 1 | 000 | 0 |
+| 100 | 0 | 110 | 0 |
+| 100 | 1 | 011 | 0 |
+| 101 | 0 | 111 | 0 |
+| 101 | 1 | 011 | 0 |
+| 110 | 0 | 110 | 0 |
+| 110 | 1 | 000 | 1 |
+| 111 | 0 | 100 | 0 |
+| 111 | 1 | 000 | 1 |
+
 ### Synthesized Schematic
 > Include the schematic generated after synthesis, showing the actual hardware implementation of your design. If the schematic is too large, you may break it up into smaller, more manageable pieces for clarity.
 
