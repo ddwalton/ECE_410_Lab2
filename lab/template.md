@@ -47,6 +47,18 @@ For the "black box," it was assumed that the original code operated as a Mealy m
 ### Truth Table & Functional Block Diagram
 > Provide a truth table for small designs or for internal blocks if the design is complex. This should outline the expected outputs for all possible inputs. Additionally, include a functional block diagram that illustrates the overall structure and major components of your design, showing how different blocks interact with each other.
 
+#### Tausworthe Generator Block Diagram
+
+![alt text](images/tgen_block_diagram.png)
+
+#### Secure Element Chip FSM
+
+![alt text](images/secure_elem_fsm_block_diagram.png)
+
+#### Block Box FSM
+
+![alt text](images/black_box_fsm.png)
+
 ### Synthesized Schematic
 > Include the schematic generated after synthesis, showing the actual hardware implementation of your design. If the schematic is too large, you may break it up into smaller, more manageable pieces for clarity.
 
