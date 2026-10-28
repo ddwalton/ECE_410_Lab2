@@ -30,6 +30,18 @@ In this lab, we design, tested, and implement a pseudo-random number generator u
 ## Design
 > Provide detailed explanation of your design process, including the following components:
 
+#### Tausworthe Generator Design
+
+The Tauseworthe generator consisted of 3 `taus88` submodules. Each submodule acts as a linear feedback shift register (LFSR), which is essentially a D Flip-Flop that does some combinational operation to determine the next register value. Using generics, each submodule is instantiated with a "seed" - the initial value held in the LFSR (`g_SEED`), 3 shift values (`g_SHIFT1`, `g_SHIFT2`, and `g_SHIFT3`), and a "mask" (`g_MASK`). The submodule then does the following computation (although, the code uses type casting and `shift_left()` / `shift_right()` functions instead of using the overloaded `SLL` and `SRL` operators for compliance with modern VHDL).
+
+```vhdl
+reg <= (((reg SLL g_SHIFT1) XOR reg) SRL g_SHIFT2) 
+        XOR
+        ((reg AND g_MASK) SLL g_SHIFT3);
+```
+
+Using 3 of these submodules initialized with different seeds, shift values, and masks and XORing their registers, we get a pseudo-random number generator (PRNG). Upon
+
 ### Calculations/Assumptions
 > Clearly state any calculations performed and assumptions made during the design process.
 
@@ -82,6 +94,18 @@ For the "black box," it was assumed that the original code operated as a Mealy m
 
 ### Synthesized Schematic
 > Include the schematic generated after synthesis, showing the actual hardware implementation of your design. If the schematic is too large, you may break it up into smaller, more manageable pieces for clarity.
+
+#### Top-level FSM RTL Synthesis
+
+![alt text](<images/fsm_top_schematic.png>)
+
+#### `fsm_wrapper_inst` RTL Synthesis
+
+![alt text](images/fsm_wrapper_inst.png)
+
+#### `fsm_wrapper_inst` Elaborated Design
+
+![alt text](images/fsm_wrapper_elaborated.png)
 
 ### Implementation
 > Describe the implementation details, including pin assignments and any observations made on the board during testing

@@ -1,14 +1,14 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 
-ENTITY taus88_top_tb IS
-END ENTITY taus88_top_tb;
+ENTITY prng_tb IS
+END ENTITY prng_tb;
 
-ARCHITECTURE test OF taus88_top_tb IS
+ARCHITECTURE test OF prng_tb IS
     SIGNAL clk, rst : STD_LOGIC := '0';
     SIGNAL dout : STD_LOGIC_VECTOR(31 DOWNTO 0) := (OTHERS => '0');
 BEGIN
-    dut : ENTITY WORK.taus88_top(Behavioral)
+    dut : ENTITY WORK.prng(Behavioral)
         PORT MAP (clk => clk, rst => rst, dout => dout);
     
     gen_clk : PROCESS
@@ -32,5 +32,7 @@ BEGIN
         
         -- continue forever
         rst <= '0';
+        
+        WAIT; -- hang this process
     END PROCESS test_signals;
 END ARCHITECTURE test;
