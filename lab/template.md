@@ -74,7 +74,7 @@ The top-level implementation uses the count signal as a port that drives a seven
 
 The black box is a reverse-engineered version of the provided `black_box.bit` bitstream file. We were able to determine that the original system had 8 total states (numbered 0-7). In each state, `SW0` (indicated on `LD0`) on the Zybo-Z7 board determines where the next state will be. This "next state" is then displayed on the LEDs `LD[1:3]`, and advanced to only when `BTN0` (`clk_en`) is pressed. 
 
-To implement this, a look-up table for each state was created. The inputs for the look-up table were the current state, as well as the current input. This determined what the next state woulde be. Implementing the `clk_en` button for state advancement was much more difficult than a simple button debounce on a micro-controller. Since button presses have some transients and high frequency noise during for some short time, the `clk_en` signal from the button had to be sampled at a lower frequency. In code, we tuned the sampling frequency to be 10 Hz by counting to 12 500 000 (incrementing by one each system clock cycle). 10 Hz was chosen arbitrarily, as humans typically press buttons for longer than 1/10 seconds. However, this didn't get rid of the problems. Since button inputs are inherently in a different clock domain than the system clock, it is possible to get metastable signals (neither 0 nor 1). Hence, to account for this, a 2-stage synchronizer was used to ensure the possibly metastable input decayed towards 0 or 1 before incrementing the counter or using the signal to detect its rising edge.
+To implement this, a look-up table for each state was created. The inputs for the look-up table were the current state, as well as the current input. This determined what the next state would be. Implementing the `clk_en` button for state advancement was much more difficult than a simple button debounce on a micro-controller. Since button presses have some transients and high frequency noise for some short time, the `clk_en` signal from the button had to be sampled at a lower frequency to avoid multiple edge detections. In code, we tuned the sampling frequency to be 10 Hz by counting to 12 500 000 (incrementing by one each system clock cycle). 10 Hz was chosen arbitrarily, as humans typically press buttons for longer than 1/10 seconds. However, this didn't get rid of the problems. Since button inputs are inherently in a different clock domain than the system clock, it is possible to get metastable signals (neither 0 nor 1). Hence, to account for this, a 2-stage synchronizer was used to ensure the possibly metastable input decayed towards 0 or 1 before incrementing the counter or using the signal to detect its rising edge.
 
 ### Calculations/Assumptions
 > Clearly state any calculations performed and assumptions made during the design process.
@@ -143,6 +143,53 @@ For the "black box," it was assumed that the original code operated as a Mealy m
 
 ### Implementation
 > Describe the implementation details, including pin assignments and any observations made on the board during testing
+
+#### Tausworthe Generator Implementation
+
+For the Tausworthe pseudo-random number generator, the implementation utilized an instantiation of the top-level design from `prng.vhd` in `taus88_top.vhd`. This implementation utilized a button-controlled manual clock to advance cycle through each clock cycle of the PRNG, essentially generating a new number each button press. Meanwhile, a byte counter takes in the generated number and displays put it in a byte-long section, while a display controller displays the byte-long section on the seven-segment display as hexadecimal.
+
+#### Secure Element FSM Implementation
+
+The secure element FSM required taking in control signals from the Analog Discovery 2 over a Pmod Port connection. To accomplish this, the constraints file needed to be modified (seen in `fsm_constr.xdc`). A table below shows the pin assignments that were required. The first version utilized `btn` (Pin `K17`) to manually advance the state, this was removed in the second version, instead using the system clock (`clock`). Both versions use a `start` signal from the button at pin `K18` as a reset signal. Both versions also use control RGB LED using the signal `rgb[2:0]`. Lastly, the improved version uses `segments[7:0]` that map to the pins that control the seven-segment display to show the current count in `SLEEP_STATE`.
+
+| FPGA Pin | Signal Name | AD2 Signal | Description |
+| --- | --- | --- | --- |
+| **K17** | `clock` | — | System Clock (125 MHz) |
+| **K18** | `start` | — | Start/Reset Button |
+| **Y16** | `btn` | — | Advance State Button (For first version) |
+| **V16** | `rgb[2]` | — | RGB LED 6 (Red) |
+| **F17** | `rgb[1]` | — | RGB LED 6 (Green) |
+| **M17** | `rgb[0]` | — | RGB LED 6 (Blue) |
+| **V15** | `busy` | **D0** | Pmod JC Pin 1 |
+| **W15** | `self_test` | **D1** | Pmod JC Pin 2 |
+| **T11** | `startup` | **D2** | Pmod JC Pin 3 |
+| **T10** | `sleep` | **D3** | Pmod JC Pin 4 |
+| **W14** | `request` | **D4** | Pmod JC Pin 7 |
+| **Y14** | `secure_channel` | **D5** | Pmod JC Pin 8 |
+| **T12** | `attack_detected` | **D6** | Pmod JC Pin 9 |
+| **T14** | `segments[6]` | — | Pmod JD Pin 1 (7-Segment Bit 6) |
+| **T15** | `segments[5]` | — | Pmod JD Pin 2 (7-Segment Bit 5) |
+| **P14** | `segments[4]` | — | Pmod JD Pin 3 (7-Segment Bit 4) |
+| **R14** | `segments[3]` | — | Pmod JD Pin 4 (7-Segment Bit 3) |
+| **V12** | `segments[2]` | — | Pmod JE Pin 1 (7-Segment Bit 2) |
+| **W16** | `segments[1]` | — | Pmod JE Pin 2 (7-Segment Bit 1) |
+| **J15** | `segments[0]` | — | Pmod JE Pin 3 (7-Segment Bit 0) |
+| **H15** | `display_select` | — | Pmod JE Pin 4 (Digit / Display Select) |
+
+#### Black Box Implementation
+
+TO reimplement the black box, only the system clock, input from the switch, a `clk_en` button to advance the state, 4 single-color LEDs (`led[0:3]`), and a pin for the green RGB LED was required for `seq_detected`. A table can be seen below. The AD2 was not used for the black box.
+
+| FPGA Pin | Signal Name | Description |
+| --- | --- | --- |
+| **K17** | `clock` | System Clock (125 MHz) |
+| **G15** | `data_in` | Switch 0 (`sw[0]`) |
+| **K18** | `clk_en` | Button 0 (`btn[0]`) |
+| **M14** | `data` | LED 0 (`led[0]`) |
+| **M15** | `leds[0]` | LED 1 (`led[1]`) |
+| **G14** | `leds[1]` | LED 2 (`led[2]`) |
+| **D18** | `leds[2]` | LED 3 (`led[3]`) |
+| **F17** | `seq_detected`| RGB LED 6 Green (`led6_g`) |
 
 ## Simulation
 > Document the simulation and results, including:
