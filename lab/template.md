@@ -40,7 +40,31 @@ reg <= (((reg SLL g_SHIFT1) XOR reg) SRL g_SHIFT2)
         ((reg AND g_MASK) SLL g_SHIFT3);
 ```
 
-Using 3 of these submodules initialized with different seeds, shift values, and masks and XORing their registers, we get a pseudo-random number generator (PRNG). Upon
+Using 3 of these submodules initialized with different seeds, shift values, and masks and XORing their registers, we get a pseudo-random number generator (PRNG) that is updated on each CLK cycle. 
+
+#### Secure Element FSM: Initial Design
+
+The initial design of the secure element FSM is implemented as a Moore FSM, where the current output only depends on the current state. The state-transition diagram can be seen below in the "Truth Table & Functional Block Diagrams" section. This was done by creating a `secure_element_fsm.vhd` entity, with input ports being each of the 7 inputs, (`attack_detected`, `busy`, `self_test`, etc.) and output ports being the the RGB values that indicate the current state. The RGB values are directly mapped to an enumerated type that describe the state, where the transitions between states are defined in nested if-else blocks within a process. Simply put, a control signal `state` drives the output RGB based on the `transition` process on the rising edge of the clock. Additionally, this version of the FSM utilizes a synchronous reset, which only resets the state back to `STARTUP_STATE` on the rising edge of the clock while `rst` is held high.
+
+The top-level module for the first iteration of the secure chip FSM (`fsm_top.vhd`) utilizes the `manual_clock` to drive the state transitions, so that testing on-board allowed more precise control.
+
+#### Secure Element FSM: Upgraded Design
+
+The upgraded design of the secure element FSM required 3 new features: an asynchronous reset, a blinking red LED on `ALARM_STATE`, and a 15-second timer that automatically transitioned the state from `SLEEP_STATE` to `IDLE_STATE` once it reached 0. To create the asynchronous reset, a second iteration of the FSM was created as `secure_element_fsm_async.vhd`. This has the same code, except the process now has `rst` in its sensitivity list (as opposed to just `clk`), while taking the `if (rst = '1')` out of the if statement for the `if rising_edge(clk) = '1'` and making the rising edge if an elsif. The change can be seen below:
+
+```vhdl
+transition : PROCESS(clk, rst)
+    BEGIN
+        IF rst = '1' THEN
+            -- async reset
+            state <= STARTUP_STATE;
+        ELSIF (rising_edge(clk)) THEN
+            -- do stuff
+```
+
+After adding the asynchronous reset, the remaining features were implemented by creating a higher-level entity (`fsm_wrapper.vhd`) that uses the FSM as a component. This higher-level entity takes in the control signals as input and plugs them into the ports of the FSM, while additionally having a secondary `wakeup` control signal that, if '1', acts like `request`, sending the state from `SLEEP_STATE` to `IDLE_STATE`. Additionally, the out ports of the are overridden with internal signals from the top-level entity to properly control the LED. 
+
+The 1 Hz blinking LED was implemented by taking the output of the FSM (which is known due to the `rgb_fsm_out` being a one-to-one mapping to states) and toggling the actual LED between "000" (off) and "100" (red) based on a 1 Hz clock signal only if `rgb_fsm_out = "100"` (`ALARM_STATE`). The 1 Hz clock was obtained from a `clock_divider` component which uses the system clock of 125 MHz as input. The clock divider operates by counting up on each rising edge of the system clock until it reaches `125_000_000 / 2` clock cycles, where it subsequently toggles the output clock high or low. This results in an overall 1 Hz output clock. The counter was implemented by using the `IEEE.NUMERIC_STD` library, which allowed an 4-bit unsigned `count` timer to be subtracted by 1 each rising edge of the 1 Hz clock (or where the closest rising edge in line with the system clock is). Once the `count` signal reaches 0, the `wakeup` signal is asserted, overriding normal operation and putting the FSM into `IDLE_STATE`.
 
 ### Calculations/Assumptions
 > Clearly state any calculations performed and assumptions made during the design process.
@@ -56,7 +80,7 @@ For the "black box," it was assumed that the original code operated as a Mealy m
 ### Flowchart of the Design
 > Include a flowchart that illustrates the overall design process or logic flow of your system.
 
-### Truth Table & Functional Block Diagram
+### Truth Table & Functional Block Diagrams
 > Provide a truth table for small designs or for internal blocks if the design is complex. This should outline the expected outputs for all possible inputs. Additionally, include a functional block diagram that illustrates the overall structure and major components of your design, showing how different blocks interact with each other.
 
 #### Tausworthe Generator Block Diagram
