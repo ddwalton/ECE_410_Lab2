@@ -251,7 +251,7 @@ The Tausworthe PRNG did not require any complex test cases, instead its function
 
 [fig. 1] The above figure are the simulation results of the Tausworthe PRNG. As can be seen during initialization ($t=0$), the last 4 hex digits contain my student ID (176**1090**), which is expected as XORing 3 registers with `0x1090` as their LSBs results in `0x1090` in the output's LSB. It can also be seen at the end that the reset signal `rst` makes the output `dout[31:0]` the same as it's initial value.
 
-
+> TODO: MORE SIM RESULTS
 
 
 ## Results 
