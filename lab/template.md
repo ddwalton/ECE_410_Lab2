@@ -197,6 +197,52 @@ TO reimplement the black box, only the system clock, input from the switch, a `c
 ### Test Cases Table & Explanation
 > Provide a brief explanation of the test cases used to verify the design, including the rationale behind each test and an explanation of edge cases used to verify the design.
 
+#### Tausworthe Generator Test Cases
+
+The Tausworthe PRNG did not require any complex test cases, instead its functionality was verified by generating a clock to cycle through each value of the LFSR and testing that the reset signal set the register back to initial value. Since each 
+
+| Test Case | Expected Output | Actual Output | Pass / Fail | Description |
+| --- | --- | --- | --- | --- |
+| **Initialization** | `0x3C3C1090` | `0x3C3C1090` | This tests that the initial value is actually the XOR of the three initial register values of each LFSR. | Pass
+| **Next Clock Edge** | `0xD593B29D` | `0xD593B29D` | Shows that the output actually changes on the rising edge to an unpredictable value according to the desired computation.| Pass
+| **`rst='1'` on rising edge of clock** | `0x3C3C1090` | `0x3C3C1090` | This test verifies that the system resets to its initial state when reset is held high (synchronous reset).| Pass |
+
+#### Secure Element FSM Test Cases
+
+| Test Case | Expected Output | Actual Output | Pass / Fail | Description |
+| --- | --- | --- | --- | --- |
+| **Test 1** | `rgb = "001"` | `rgb = "001"` | Pass | Transition `rst` -> `startup`: System enters startup state |
+| **Test 2** | `rgb = "100"` | `rgb = "100"` | Pass | Transition `startup` -> `alarm`: Failed self-test triggers alarm state |
+| **Test 3** | `rgb = "001"` | `rgb = "001"` | Pass | Transition `alarm` -> `startup`: Reset clears alarm to startup state |
+| **Test 4** | `rgb = "110"` | `rgb = "110"` | Pass | Transition `startup` -> `idle`: Successful self-test transitions to idle state |
+| **Test 5** | `rgb = "111"` | `rgb = "111"` | Pass | Transition `idle` -> `sleep`: Sleep signal transitions FSM to sleep state |
+| **Test 6** | `rgb = "110"` | `rgb = "110"` | Pass | Transition `sleep` -> `idle`: Request signal wakes FSM to idle state |
+| **Test 7** | `rgb = "001"` | `rgb = "001"` | Pass | Transition `idle` -> `startup`: Startup signal returns FSM to startup state |
+| **Test 8** | `rgb = "110"` | `rgb = "110"` | Pass | Transition `startup` -> `idle`: Successful self-test returns to idle state |
+| **Test 9** | `rgb = "100"` | `rgb = "100"` | Pass | Transition `idle` -> `alarm`: Attack detection triggers alarm state |
+| **Test 10** | `rgb = "001"` | `rgb = "001"` | Pass | Transition `alarm` -> `startup`: Reset signal clears alarm state to startup |
+| **Test 11** | `rgb = "110"` | `rgb = "110"` | Pass | Transition `startup` -> `idle`: Successful self-test enters idle state |
+| **Test 12** | `rgb = "010"` | `rgb = "010"` | Pass | Transition `idle` -> `secure`: Secure channel request enters secure state |
+| **Test 13** | `rgb = "111"` | `rgb = "111"` | Pass | Transition `secure` -> `sleep`: Sleep signal from secure state enters sleep state |
+| **Test 14** | `rgb = "110"` | `rgb = "110"` | Pass | Transition `sleep` -> `idle`: Request signal wakes FSM back to idle state |
+| **Test 15** | `rgb = "010"` | `rgb = "010"` | Pass | Transition `idle` -> `secure`: Secure channel asserted enters secure state |
+| **Test 16** | `rgb = "110"` | `rgb = "110"` | Pass | Transition `secure` -> `idle`: De-asserting secure channel returns to idle state |
+| **Test 17** | `rgb = "010"` | `rgb = "010"` | Pass | Transition `idle` -> `secure`: Re-asserting secure channel enters secure state |
+| **Test 18** | `rgb = "100"` | `rgb = "100"` | Pass | Transition `secure` -> `alarm`: Attack detected in secure state triggers alarm |
+
+#### Black Box Test Cases
+
+| Test Case | Expected Output | Actual Output | Pass / Fail | Description |
+| --- | --- | --- | --- | --- |
+| **Test 1** | `data = '0'`, `leds = "001"` | `data = '0'`, `leds = "001"` | Pass | Initial state: verified data pass-through and `next_state = 001` |
+| **Test 2** | `leds = "001"` | `leds = "001"` | Pass | Glitch rejection: short pulse on `clk_en` ignored by debounce counter |
+| **Test 3** | `leds = "010"` | `leds = "010"` | Pass | Transition state `000` -> `001`: debounced `clk_en` advances state |
+| **Test 4** | `leds = "100"` | `leds = "100"` | Pass | Transition state `001` -> `010`: debounced `clk_en` advances state |
+| **Test 5** | `leds = "110"` | `leds = "110"` | Pass | Transition state `010` -> `100`: debounced `clk_en` advances state |
+| **Test 6** | `leds = "110"` | `leds = "110"` | Pass | Transition state `100` -> `110`: debounced `clk_en` advances state |
+| **Test 7** | `data = '1'`, `leds = "000"`, `seq_detected = '1'` | `data = '1'`, `leds = "000"`, `seq_detected = '1'` | Pass | Sequence detection: combinatorial check in state `110` with `data_in = '1'` |
+| **Test 8** | `seq_detected = '0'` | `seq_detected = '0'` | Pass | Transition state `110` -> `000`: clock pulse clears sequence detection flag |
+| **Test 9** | `leds = "000"` | `leds = "000"` | Pass | Hold state `000`: `data_in = '1'` maintains current state at `000` |
 
 ### Simulation Results
 > Include figures and waveforms from the simulation, accompanied by a brief explanation of the observed results and their significance.
