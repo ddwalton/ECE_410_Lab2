@@ -285,10 +285,17 @@ Upgraded Secure Element FSM Results: The upgraded FSM was evaluated for its asyn
 | Alarm indicator | Flash the red LED at 1 Hz while in the alarm state | The LED alternates between red (`100`) and off (`000`) |
 | Sleep countdown | Count down from 15 and wake the FSM to idle | the wakeup signal returns the FSM to idle |
 
+Sequence Detector Results: It was simulated to check its state transitions, data pass-through, sequence detection, and rejection of short clk_en pulses. The design has eight states, and the LEDs show the next state. No discrepancies were observed in these tests. The initial test confirmed that `data_in = '0'` passed through to `data` and that the LEDs displayed `001`.  The detector then advanced through the tested states: `000` to `001`, `001` to `010`, `010` to `100`, and `100` to `110`, with the LEDs showing the expected outputs at each step.
+
+For sequence detection, when the detector was in state `110` and `data_in = '1'`, the output became `data = '1'`, the LEDs displayed `000`, and `seq_detected` was changed to 1. After the detector moved to state `000`, `seq_detected` returned to `0`.The observed results matched the expected results in all nine tests.
+
 
 
 ## Conclusion
 > Summarize the outcomes of the lab, including any challenges encountered and how they were addressed. Discuss the effectiveness of the design and any potential improvements.
+
+In this lab we worked on designing and testing a Tausworthe pseudo-random number generator, a secure element FSM, upgrades to the FSM, and a reverse-engineered sequence detector. The simulation results matched the expected outputs for all three PRNG tests, all 18 secure element FSM tests, and all sequence detector tests. 
+
 
 ## References
 > Cite any references used during the lab, including textbooks, websites, articles or AI Assistants.
