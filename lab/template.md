@@ -257,6 +257,36 @@ The Tausworthe PRNG did not require any complex test cases, instead its function
 ## Results 
 > Present the results of your implementation, comparing them with expected outcomes. Discuss any discrepancies and analyze the performance of the design.
 
+Tausworthe PRNG: The PRNG simulation was checked based on three things: the initial output, its update after clock edge, and how it response to reset. In the initialization stage the three Tausworthe registers load their seed values and their XOR produced the initial 32-bit output, 0x3C3C1090. After the rst changes from 1 to 0 the output changes and updates on successive rising clock edges. When reset is asserted, the generator returns to those starting values and the sequence begins again.
+| Test case | Expected result | Observed result |
+|---|---|---|
+| Initial state | `0x3C3C1090` | `0x3C3C1090` |
+| First update after a rising clock edge | `0xD593B29D` | `0xD593B29D` |
+| Reset asserted at a rising clock edge | Output returns to `0x3C3C1090` | Output returned to `0x3C3C1090` |
+
+All three test cases matched their expected results.
+
+Secure Element FSM Results: This section was simulated to verify the FSM transitions between the startup, idle, secure, sleep, and alarm states. The RGB outputs identify the current state. `001` for startup, `110` for idle, `010` for secure, `111` for sleep, and `100` for alarm. In the simulation, the observed RGB output matched the expected output in all 18 test cases.
+| State | RGB output | Indicated state |
+|---|---|---|
+| Startup | `001` | Blue |
+| Idle | `110` | Yellow |
+| Secure | `010` | Green |
+| Sleep | `111` | White |
+| Alarm | `100` | Red |
+
+All 18 test cases passed, with no differences between the expected and observed outputs.
+
+Upgraded Secure Element FSM Results: The upgraded FSM was evaluated for its asynchronous reset, alarm LED flashing, and sleep countdown.
+
+| Feature | Expected behavior | Observed behavior |
+|---|---|---|
+| Asynchronous reset | Return to startup when reset is asserted, without waiting for a clock edge | The FSM returns to startup when reset is asserted |
+| Alarm indicator | Flash the red LED at 1 Hz while in the alarm state | The LED alternates between red (`100`) and off (`000`) |
+| Sleep countdown | Count down from 15 and wake the FSM to idle | the wakeup signal returns the FSM to idle |
+
+
+
 ## Conclusion
 > Summarize the outcomes of the lab, including any challenges encountered and how they were addressed. Discuss the effectiveness of the design and any potential improvements.
 
