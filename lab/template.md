@@ -157,9 +157,12 @@ For the "black box," it was assumed that the original code operated as a Mealy m
 
 ![alt text](images/fsm1_elab.png)
 
-#### Secure Element FSM: Upgraded Version RTL Synthesis
 
-![alt text](<images/fsm_top_schematic.png>)
+### Secure Element FSM: Upgraded Version Elaborated Design
+
+#### `fsm_wrapper_top` RTL Synthesis
+
+![alt text](<images/fsm_top_schematic.png)
 
 #### `fsm_wrapper_inst` RTL Synthesis
 
@@ -168,6 +171,14 @@ For the "black box," it was assumed that the original code operated as a Mealy m
 #### `fsm_wrapper_inst` Elaborated Design
 
 ![alt text](images/fsm_wrapper_elaborated.png)
+
+### Black Box RTL Synthesis
+
+![alt text](images/black_box_rtl.png)
+
+### Black Box Elaborated Design
+
+![alt text](images/black_box_elab.png)
 
 ## Implementation
 > Describe the implementation details, including pin assignments and any observations made on the board during testing
@@ -235,7 +246,7 @@ The Tausworthe PRNG did not require any complex test cases, instead its function
 | **Next Clock Edge** | `0xD593B29D` | `0xD593B29D` | Shows that the output actually changes on the rising edge to an unpredictable value according to the desired computation.| Pass
 | **`rst='1'` on rising edge of clock** | `0x3C3C1090` | `0x3C3C1090` | This test verifies that the system resets to its initial state when reset is held high (synchronous reset).| Pass |
 
-#### Secure Element FSM Test Cases
+#### Secure Element FSM: First Version Test Cases
 
 | Test Case | Expected Output | Actual Output | Pass / Fail | Description |
 | --- | --- | --- | --- | --- |
@@ -258,6 +269,21 @@ The Tausworthe PRNG did not require any complex test cases, instead its function
 | **Test 17** | `rgb = "010"` | `rgb = "010"` | Pass | Transition `idle` -> `secure`: Re-asserting secure channel enters secure state |
 | **Test 18** | `rgb = "100"` | `rgb = "100"` | Pass | Transition `secure` -> `alarm`: Attack detected in secure state triggers alarm |
 
+#### Secure Element FSM: Upgraded Version Test Cases
+
+| Test Case | Expected Output | Actual Output | Pass / Fail | Description |
+| --- | --- | --- | --- | --- |
+| **Test 1** | `rgb = "001"` | `rgb = "001"` | Pass | Transition `rst` -> `startup`: System enters startup state |
+| **Test 2** | `rgb = "100"` or `"000"` | `rgb = "100"` | Pass | Transition `startup` -> `alarm`: Alarm state entered with red LED output |
+| **Test 3** | `count_out = "1111"` | `count_out = "1111"` | Pass | Alarm state verification: `count_out` held reset at 15 |
+| **Test 4** | `rgb = "100"` or `"000"` | `rgb = "000"` | Pass | Alarm state verification: Red LED flashes with 1 Hz clock divider |
+| **Test 5** | `rgb = "001"` | `rgb = "001"` | Pass | Transition `alarm` -> `startup`: Reset clears alarm state to startup |
+| **Test 6** | `rgb = "110"` | `rgb = "110"` | Pass | Transition `startup` -> `idle`: Successful self-test transitions to idle state |
+| **Test 7** | `rgb = "111"` | `rgb = "111"` | Pass | Transition `idle` -> `sleep`: Sleep signal enters sleep state with white LED |
+| **Test 8** | `rgb = "111"` | `rgb = "111"` | Pass | Sleep state verification: RGB remains solid white during countdown |
+| **Test 9** | `count_out < "1111"` | `count_out = "1110"` | Pass | Sleep state verification: Counter decrements on clock divider edges |
+| **Test 10** | `rgb = "110"` | `rgb = "110"` | Pass | Transition `sleep` -> `idle`: Auto-wakeup triggers return to idle state when counter reaches 0 |
+
 #### Black Box Test Cases
 
 | Test Case | Expected Output | Actual Output | Pass / Fail | Description |
@@ -277,12 +303,19 @@ The Tausworthe PRNG did not require any complex test cases, instead its function
 
 ![alt text](images/prng_sim_results.png)
 
-[fig. 1] The above figure are the simulation results of the Tausworthe PRNG. As can be seen during initialization ($t=0$), the last 4 hex digits contain my student ID (176**1090**), which is expected as XORing 3 registers with `0x1090` as their LSBs results in `0x1090` in the output's LSB. It can also be seen at the end that the reset signal `rst` makes the output `dout[31:0]` the same as it's initial value.
+[sim. 1] The above figure are the simulation results of the Tausworthe PRNG. As can be seen during initialization ($t=0$), the last 4 hex digits contain my student ID (176**1090**), which is expected as XORing 3 registers with `0x1090` as their LSBs results in `0x1090` in the output's LSB. It can also be seen at the end that the reset signal `rst` makes the output `dout[31:0]` the same as it's initial value.
 
+![alt text](images/fsm1_sim.png)
 
+[sim. 2] The above figure shows the simulation results of the secure element FSM through each state transition. It should be noted that this version has a synchronous reset. Each state properly outputs the `rgb[2:0]` value associated with their state.
 
-> TODO: MORE SIM RESULTS
+![alt text](images/fsm_wrapper_sim.png)
 
+[sim. 3] The above figure shows the simulation results of the upgraded secure element FSM. More specifically, it tests the `fsm_wrapper` entity. Thus, all that needed to be tested is that for an arbitrary clock frequency (in this case 4 Hz), the timer counted down in sleep mode (`rgb = 111`) at the desired 1 Hz (seen in `count_led` going from `0xF` = $(15)_{10}$ down to 0x0 = $0_{10}$), and flashing red (`rgb` oscillating between `0b000` = 0 and `0b100` = 4).
+
+![alt text](images/black_box_sim.png)
+
+[sim. 4] The above figure shows the simulation results for the black box re-implementation. More specifically, it focuses on the debouncing filter logic and state transition dynamics driven by the `clk_en` input. The waveform verifies that short glitches on `clk_en` lasting fewer than `g_COUNT_MAX` clock cycles are ignored, whereas a sustained high signal allows the internal counter to expire and assert `slow_clk_en`. This rising edge successfully triggers state transitions (updating `leds` via `curr_state`), and upon reaching state `"110"` with `data_in = '1'`, `seq_detected` correctly asserts high before clearing once the state resets back to `"000"`.
 
 ## Results 
 > Present the results of your implementation, comparing them with expected outcomes. Discuss any discrepancies and analyze the performance of the design.
