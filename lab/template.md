@@ -6,31 +6,13 @@ CCIDs: ddwalton, ahoushya
 
 Lab Section: D31
 
-## Questions
-1. What was the biggest obstacle you had to overcome while working on this lab, and how did you resolve it?
-2. Compare the testing process using the logic analyzer with the behavioral simulation. How did the real-time
-testing with the AD2 differ from the purely simulated environment, and what are the key benefits of using
-the AD2/AD3 for testing your design? Were there any specific challenges or insights you gained from this
-hands-on testing that were not apparent during simulation?
-3. Propose potential enhancements to the pseudo random number generator design from Part 1, and briefly
-justify each enhancement in 1 or 2 sentences.
-4. Suggest other possible upgrades that could be added to the secure element to improve its functionality or
-safety. Provide a brief explanation for each suggestion.
-5. What trade-offs did you consider when deciding whether to use a Mealy or Moore FSM for the secure
-element? How did this decision impact your design?
-
-
 ## Abstract
-> Provide a summary of the lab objectives, design approach, and key results. The abstract should be no more than 150 words.
 
-In this lab, we design, tested, and implement a pseudo-random number generator using a the Tausworthe generator architecture. Then, we design, tested, and implemented a 7-input, 3-output (RGB LED), 5-state Moore finite state machine (FSM) for a secure element chip. After creating the 5-state secure element FSM, it was enhanced by making the Zybo-Z7 development board flash a red on the RGB LED at 5 Hz in `ALARM_STATE`, and adding a 15-second wake-up timer to the sleep state, in which it would automatically go into the `IDLE_STATE` from `SLEEP_STATE`. Finally, a Mealy FSM was reverse engineered from a bitstream and reimplemented in VHDL.
-
-> TODO: Results?
+In this lab, a Tausworthe pseudo-random number generator (PRNG), a 5-state Moore finite state machine (FSM) for a secure element chip, and a reverse-engineered Mealy FSM sequence detector were designed, simulated, and deployed on a Zybo-Z7 FPGA board. The initial secure element FSM was upgraded to incorporate an asynchronous reset, a 1 Hz flashing red LED alarm state, and a 15-second automatic sleep countdown timer driving a 7-segment display. Hardware operation was verified using an Analog Discovery 2 oscilloscope and on-board peripherals. Simulation testbenches achieved a 100% pass rate across all 37 test cases. Statistical analysis of 147016 output words from the Tausworthe PRNG yielded a Shannon entropy of 7.9997 bits/byte, confirming near-ideal uniform pseudo-randomness.
 
 ## Design
-> Provide detailed explanation of your design process, including the following components:
 
-#### Tausworthe Generator Design
+### Tausworthe Generator Design
 
 The Tauseworthe generator consisted of 3 `taus88` submodules. Each submodule acts as a linear feedback shift register (LFSR), which is essentially a D Flip-Flop that does some combinational operation to determine the next register value. Using generics, each submodule is instantiated with a "seed" - the initial value held in the LFSR (`g_SEED`), 3 shift values (`g_SHIFT1`, `g_SHIFT2`, and `g_SHIFT3`), and a "mask" (`g_MASK`). The submodule then does the following computation (although, the code uses type casting and `shift_left()` / `shift_right()` functions instead of using the overloaded `SLL` and `SRL` operators for compliance with modern VHDL).
 
@@ -42,24 +24,26 @@ reg <= (((reg SLL g_SHIFT1) XOR reg) SRL g_SHIFT2)
 
 Using 3 of these submodules initialized with different seeds, shift values, and masks and XORing their registers, we get a pseudo-random number generator (PRNG) that is updated on each CLK cycle. 
 
-#### Secure Element FSM: Initial Design
+### Secure Element FSM: Initial Design
 
 The initial design of the secure element FSM is implemented as a Moore FSM, where the current output only depends on the current state. The state-transition diagram can be seen below in the "Truth Table & Functional Block Diagrams" section. This was done by creating a `secure_element_fsm.vhd` entity, with input ports being each of the 7 inputs, (`attack_detected`, `busy`, `self_test`, etc.) and output ports being the the RGB values that indicate the current state. The RGB values are directly mapped to an enumerated type that describe the state, where the transitions between states are defined in nested if-else blocks within a process. Simply put, a control signal `state` drives the output RGB based on the `transition` process on the rising edge of the clock. Additionally, this version of the FSM utilizes a synchronous reset, which only resets the state back to `STARTUP_STATE` on the rising edge of the clock while `rst` is held high.
 
 The top-level module for the first iteration of the secure chip FSM (`fsm_top.vhd`) utilizes the `manual_clock` to drive the state transitions, so that testing on-board allowed more precise control.
 
-#### Secure Element FSM: Upgraded Design
+### Secure Element FSM: Upgraded Design
 
 The upgraded design of the secure element FSM required 3 new features: an asynchronous reset, a blinking red LED on `ALARM_STATE`, and a 15-second timer that automatically transitioned the state from `SLEEP_STATE` to `IDLE_STATE` once it reached 0. To create the asynchronous reset, a second iteration of the FSM was created as `secure_element_fsm_async.vhd`. This has the same code, except the process now has `rst` in its sensitivity list (as opposed to just `clk`), while taking the `if (rst = '1')` out of the if statement for the `if rising_edge(clk) = '1'` and making the rising edge if an elsif. The change can be seen below:
 
 ```vhdl
+-- asynchronous reset process structure
 transition : PROCESS(clk, rst)
-    BEGIN
-        IF rst = '1' THEN
-            -- async reset
-            state <= STARTUP_STATE;
-        ELSIF (rising_edge(clk)) THEN
-            -- do stuff
+BEGIN
+    IF rst = '1' THEN
+        state <= STARTUP_STATE;
+    ELSIF rising_edge(clk) THEN
+        -- state transition logic
+    END IF;
+END PROCESS transition;
 ```
 
 After adding the asynchronous reset, the remaining features were implemented by creating a higher-level entity (`fsm_wrapper.vhd`) that uses the FSM as a component. This higher-level entity takes in the control signals as input and plugs them into the ports of the FSM, while additionally having a secondary `wakeup` control signal that, if '1', acts like `request`, sending the state from `SLEEP_STATE` to `IDLE_STATE`. Additionally, the out ports of the are overridden with internal signals from the top-level entity to properly control the LED. 
@@ -70,28 +54,27 @@ The counter was implemented by using the `IEEE.NUMERIC_STD` library, which allow
 
 The top-level implementation uses the count signal as a port that drives a seven-segment display decoder (`display_controller`) by converting the hex value to binary encoded decimal to properly display the sleep countdown value in base-10.
 
-#### Black Box Design
+### Black Box Design
 
 The black box is a reverse-engineered version of the provided `black_box.bit` bitstream file. We were able to determine that the original system had 8 total states (numbered 0-7). In each state, `SW0` (indicated on `LD0`) on the Zybo-Z7 board determines where the next state will be. This "next state" is then displayed on the LEDs `LD[1:3]`, and advanced to only when `BTN0` (`clk_en`) is pressed. 
 
 To implement this, a look-up table for each state was created. The inputs for the look-up table were the current state, as well as the current input. This determined what the next state would be. Implementing the `clk_en` button for state advancement was much more difficult than a simple button debounce on a micro-controller. Since button presses have some transients and high frequency noise for some short time, the `clk_en` signal from the button had to be sampled at a lower frequency to avoid multiple edge detections. In code, we tuned the sampling frequency to be 10 Hz by counting to 12 500 000 (incrementing by one each system clock cycle). 10 Hz was chosen arbitrarily, as humans typically press buttons for longer than 1/10 seconds. However, this didn't get rid of the problems. Since button inputs are inherently in a different clock domain than the system clock, it is possible to get metastable signals (neither 0 nor 1). Hence, to account for this, a 2-stage synchronizer was used to ensure the possibly metastable input decayed towards 0 or 1 before incrementing the counter or using the signal to detect its rising edge.
 
-### Calculations/Assumptions
-> Clearly state any calculations performed and assumptions made during the design process.
+## Calculations/Assumptions
 
-#### Secure Element FSM Assumptions
+### Secure Element FSM Assumptions
 
 For the secure element FSM, it was assumed that any state (aside from `SLEEP_STATE`) immediately goes into `ALARM_STATE` once `attack_detected` is asserted. Additionally, it was assumed that `ALARM_STATE > SECURE_STATE > STARTUP_STATE > SLEEP_STATE` in terms of precedence (i.e., if each signal were asserted at the same time, the FSM would go into `ALARM_STATE`). Finally, it was assumed that the `SLEEP_STATE` can only be left by asserting `request`, where it transitions into `IDLE_STATE`. 
 
-#### Black Box Assumptions
+### Black Box Assumptions
 
 For the "black box," it was assumed that the original code operated as a Mealy machine (inputs and state in conjunction controlling the current state). Although mathematically analogous, the Mealy implementation was far simpler to implement than a Moore machine due to the number of states it would require.
 
-### Flowchart of the Design
-> Include a flowchart that illustrates the overall design process or logic flow of your system.
+## System Architecture & Block Diagrams
 
 ### Truth Table & Functional Block Diagrams
-> Provide a truth table for small designs or for internal blocks if the design is complex. This should outline the expected outputs for all possible inputs. Additionally, include a functional block diagram that illustrates the overall structure and major components of your design, showing how different blocks interact with each other.
+
+---
 
 #### Tausworthe Generator Block Diagram
 
@@ -126,12 +109,43 @@ For the "black box," it was assumed that the original code operated as a Mealy m
 | 111 | 0 | 100 | 0 |
 | 111 | 1 | 000 | 1 |
 
-### Synthesized Schematic
-> Include the schematic generated after synthesis, showing the actual hardware implementation of your design. If the schematic is too large, you may break it up into smaller, more manageable pieces for clarity.
+### Synthesized Schematics
 
-#### Top-level FSM RTL Synthesis
+---
 
-![alt text](<images/fsm_top_schematic.png>)
+### Tausworthe Generator RTL Synthesis
+
+#### Top-Level Tausworthe Generator RTL Synthesis
+
+![alt text](images/prng_rtl.png)
+
+#### Single Instantiated `taus88` Unit RTL Synthesis
+
+![alt text](images/taus88_rtl.png)
+
+### Tausworthe Generator Elaborated Design
+
+#### Top-Level Tausworthe Generator Elaborated Design
+
+![alt text](images/prng_top_elab.png)
+
+#### `PRNG` Elaborated Design
+
+![alt text](images/prng_rtl.png)
+
+### Secure Element FSM: First Version RTL Synthesis
+
+![alt text](images/fsm1_rtl.png)
+
+### Secure Element FSM: First Version Elaborated Design
+
+![alt text](images/fsm1_elab.png)
+
+### Secure Element FSM: Upgraded Version Elaborated Design
+
+#### `fsm_wrapper_top` RTL Synthesis
+
+![alt text](images/fsm_top_schematic.png)
 
 #### `fsm_wrapper_inst` RTL Synthesis
 
@@ -141,14 +155,21 @@ For the "black box," it was assumed that the original code operated as a Mealy m
 
 ![alt text](images/fsm_wrapper_elaborated.png)
 
-### Implementation
-> Describe the implementation details, including pin assignments and any observations made on the board during testing
+### Black Box RTL Synthesis
 
-#### Tausworthe Generator Implementation
+![alt text](images/black_box_rtl.png)
+
+### Black Box Elaborated Design
+
+![alt text](images/black_box_elab.png)
+
+## Implementation
+
+### Tausworthe Generator Implementation
 
 For the Tausworthe pseudo-random number generator, the implementation utilized an instantiation of the top-level design from `prng.vhd` in `taus88_top.vhd`. This implementation utilized a button-controlled manual clock to advance cycle through each clock cycle of the PRNG, essentially generating a new number each button press. Meanwhile, a byte counter takes in the generated number and displays put it in a byte-long section, while a display controller displays the byte-long section on the seven-segment display as hexadecimal.
 
-#### Secure Element FSM Implementation
+### Secure Element FSM Implementation
 
 The secure element FSM required taking in control signals from the Analog Discovery 2 over a Pmod Port connection. To accomplish this, the constraints file needed to be modified (seen in `fsm_constr.xdc`). A table below shows the pin assignments that were required. The first version utilized `btn` (Pin `K17`) to manually advance the state, this was removed in the second version, instead using the system clock (`clock`). Both versions use a `start` signal from the button at pin `K18` as a reset signal. Both versions also use control RGB LED using the signal `rgb[2:0]`. Lastly, the improved version uses `segments[7:0]` that map to the pins that control the seven-segment display to show the current count in `SLEEP_STATE`.
 
@@ -176,7 +197,7 @@ The secure element FSM required taking in control signals from the Analog Discov
 | **J15** | `segments[0]` | — | Pmod JE Pin 3 (7-Segment Bit 0) |
 | **H15** | `display_select` | — | Pmod JE Pin 4 (Digit / Display Select) |
 
-#### Black Box Implementation
+### Black Box Implementation
 
 TO reimplement the black box, only the system clock, input from the switch, a `clk_en` button to advance the state, 4 single-color LEDs (`led[0:3]`), and a pin for the green RGB LED was required for `seq_detected`. A table can be seen below. The AD2 was not used for the black box.
 
@@ -192,10 +213,8 @@ TO reimplement the black box, only the system clock, input from the switch, a `c
 | **F17** | `seq_detected`| RGB LED 6 Green (`led6_g`) |
 
 ## Simulation
-> Document the simulation and results, including:
 
 ### Test Cases Table & Explanation
-> Provide a brief explanation of the test cases used to verify the design, including the rationale behind each test and an explanation of edge cases used to verify the design.
 
 #### Tausworthe Generator Test Cases
 
@@ -203,11 +222,11 @@ The Tausworthe PRNG did not require any complex test cases, instead its function
 
 | Test Case | Expected Output | Actual Output | Pass / Fail | Description |
 | --- | --- | --- | --- | --- |
-| **Initialization** | `0x3C3C1090` | `0x3C3C1090` | This tests that the initial value is actually the XOR of the three initial register values of each LFSR. | Pass
-| **Next Clock Edge** | `0xD593B29D` | `0xD593B29D` | Shows that the output actually changes on the rising edge to an unpredictable value according to the desired computation.| Pass
-| **`rst='1'` on rising edge of clock** | `0x3C3C1090` | `0x3C3C1090` | This test verifies that the system resets to its initial state when reset is held high (synchronous reset).| Pass |
+| **Initialization** | `0x3C3C1090` | `0x3C3C1090` | Pass | Verified initial state corresponds to XOR of seeds |
+| **Next Clock Edge** | `0xD593B29D` | `0xD593B29D` | Pass | Verified output updates correctly on rising clock edge |
+| **Reset Asserted** | `0x3C3C1090` | `0x3C3C1090` | Pass | Verified synchronous reset restores initial seed value |
 
-#### Secure Element FSM Test Cases
+#### Secure Element FSM: First Version Test Cases
 
 | Test Case | Expected Output | Actual Output | Pass / Fail | Description |
 | --- | --- | --- | --- | --- |
@@ -230,6 +249,21 @@ The Tausworthe PRNG did not require any complex test cases, instead its function
 | **Test 17** | `rgb = "010"` | `rgb = "010"` | Pass | Transition `idle` -> `secure`: Re-asserting secure channel enters secure state |
 | **Test 18** | `rgb = "100"` | `rgb = "100"` | Pass | Transition `secure` -> `alarm`: Attack detected in secure state triggers alarm |
 
+#### Secure Element FSM: Upgraded Version Test Cases
+
+| Test Case | Expected Output | Actual Output | Pass / Fail | Description |
+| --- | --- | --- | --- | --- |
+| **Test 1** | `rgb = "001"` | `rgb = "001"` | Pass | Transition `rst` -> `startup`: System enters startup state |
+| **Test 2** | `rgb = "100"` or `"000"` | `rgb = "100"` | Pass | Transition `startup` -> `alarm`: Alarm state entered with red LED output |
+| **Test 3** | `count_out = "1111"` | `count_out = "1111"` | Pass | Alarm state verification: `count_out` held reset at 15 |
+| **Test 4** | `rgb = "100"` or `"000"` | `rgb = "000"` | Pass | Alarm state verification: Red LED flashes with 1 Hz clock divider |
+| **Test 5** | `rgb = "001"` | `rgb = "001"` | Pass | Transition `alarm` -> `startup`: Reset clears alarm state to startup |
+| **Test 6** | `rgb = "110"` | `rgb = "110"` | Pass | Transition `startup` -> `idle`: Successful self-test transitions to idle state |
+| **Test 7** | `rgb = "111"` | `rgb = "111"` | Pass | Transition `idle` -> `sleep`: Sleep signal enters sleep state with white LED |
+| **Test 8** | `rgb = "111"` | `rgb = "111"` | Pass | Sleep state verification: RGB remains solid white during countdown |
+| **Test 9** | `count_out < "1111"` | `count_out = "1110"` | Pass | Sleep state verification: Counter decrements on clock divider edges |
+| **Test 10** | `rgb = "110"` | `rgb = "110"` | Pass | Transition `sleep` -> `idle`: Auto-wakeup triggers return to idle state when counter reaches 0 |
+
 #### Black Box Test Cases
 
 | Test Case | Expected Output | Actual Output | Pass / Fail | Description |
@@ -245,19 +279,28 @@ The Tausworthe PRNG did not require any complex test cases, instead its function
 | **Test 9** | `leds = "000"` | `leds = "000"` | Pass | Hold state `000`: `data_in = '1'` maintains current state at `000` |
 
 ### Simulation Results
-> Include figures and waveforms from the simulation, accompanied by a brief explanation of the observed results and their significance.
 
 ![alt text](images/prng_sim_results.png)
 
-[fig. 1] The above figure are the simulation results of the Tausworthe PRNG. As can be seen during initialization ($t=0$), the last 4 hex digits contain my student ID (176**1090**), which is expected as XORing 3 registers with `0x1090` as their LSBs results in `0x1090` in the output's LSB. It can also be seen at the end that the reset signal `rst` makes the output `dout[31:0]` the same as it's initial value.
+[sim. 1] The above figure are the simulation results of the Tausworthe PRNG. As can be seen during initialization ($t=0$), the last 4 hex digits contain my student ID (176**1090**), which is expected as XORing 3 registers with `0x1090` as their LSBs results in `0x1090` in the output's LSB. It can also be seen at the end that the reset signal `rst` makes the output `dout[31:0]` the same as it's initial value.
 
-> TODO: MORE SIM RESULTS
+![alt text](images/fsm1_sim.png)
 
+[sim. 2] The above figure shows the simulation results of the secure element FSM through each state transition. It should be noted that this version has a synchronous reset. Each state properly outputs the `rgb[2:0]` value associated with their state.
+
+![alt text](images/fsm_wrapper_sim.png)
+
+[sim. 3] The above figure shows the simulation results of the upgraded secure element FSM. More specifically, it tests the `fsm_wrapper` entity. Thus, all that needed to be tested is that for an arbitrary clock frequency (in this case 4 Hz), the timer counted down in sleep mode (`rgb = 111`) at the desired 1 Hz (seen in `count_led` going from `0xF` = $(15)_{10}$ down to 0x0 = $0_{10}$), and flashing red (`rgb` oscillating between `0b000` = 0 and `0b100` = 4).
+
+![alt text](images/black_box_sim.png)
+
+[sim. 4] The above figure shows the simulation results for the black box re-implementation. More specifically, it focuses on the debouncing filter logic and state transition dynamics driven by the `clk_en` input. The waveform verifies that short glitches on `clk_en` lasting fewer than `g_COUNT_MAX` clock cycles are ignored, whereas a sustained high signal allows the internal counter to expire and assert `slow_clk_en`. This rising edge successfully triggers state transitions (updating `leds` via `curr_state`), and upon reaching state `"110"` with `data_in = '1'`, `seq_detected` correctly asserts high before clearing once the state resets back to `"000"`.
 
 ## Results 
 > Present the results of your implementation, comparing them with expected outcomes. Discuss any discrepancies and analyze the performance of the design.
 
 Tausworthe PRNG: The PRNG simulation was checked based on three things: the initial output, its update after clock edge, and how it response to reset. In the initialization stage the three Tausworthe registers load their seed values and their XOR produced the initial 32-bit output, 0x3C3C1090. After the rst changes from 1 to 0 the output changes and updates on successive rising clock edges. When reset is asserted, the generator returns to those starting values and the sequence begins again.
+
 | Test case | Expected result | Observed result |
 |---|---|---|
 | Initial state | `0x3C3C1090` | `0x3C3C1090` |
@@ -265,6 +308,17 @@ Tausworthe PRNG: The PRNG simulation was checked based on three things: the init
 | Reset asserted at a rising clock edge | Output returns to `0x3C3C1090` | Output returned to `0x3C3C1090` |
 
 All three test cases matched their expected results.
+
+As an additional metric of PRNG success, an entropy analysis was conducted over a set of simulation data obtained by omitting the reset assertion in the testbench. 147016 32-bit values were created. Using a vcd2csv converter (available: [GitHub](https://github.com/ddwalton/vcd2csv.git)) and a python program to test the Shannon entropy (see equation below) of each individual bit, the calculated byte entropy was found to be 7.9997 bits/byte (8 bits/byte would be ideal) -- which essentially means it would require just barely under 8 bits to compress the entire 147016 word long PRNG sequence. These results are quite good, and show that there is little to no biasing towards 0 or 1, or repeating patterns that can be extracted. This is indicative of a good, uniformly distributed set of values.
+
+Shannon entropy formula:
+
+$$
+H(X)=-\sum_{x\in{X}}p(x)\log(p(x))
+$$
+
+![alt text](images/prng_vs_time.png)
+The PRNG generated value (encoded as a 32-bit unsigned integer) vs. time can be seen in the graph above.
 
 Secure Element FSM Results: This section was simulated to verify the FSM transitions between the startup, idle, secure, sleep, and alarm states. The RGB outputs identify the current state. `001` for startup, `110` for idle, `010` for secure, `111` for sleep, and `100` for alarm. In the simulation, the observed RGB output matched the expected output in all 18 test cases.
 | State | RGB output | Indicated state |
@@ -299,9 +353,40 @@ The hardest part was making sure each `clk_en` button press advanced the sequenc
 The setup could be improved by using secure cables to connect the Zybo board and breadboard to the Analog Discovery 2 oscilloscope, since loose connections made the setup less reliable.
 
 
+## Questions
+>1. What was the biggest obstacle you had to overcome while working on this lab, and how did you resolve it?
+
+As stated earlier, the biggest obstacle in this lab was certainly the `clk_en` button debouncing. Here, we had to deal with asynchronous clock domains (the real world vs. the system clock). In software, its quite easy: just trigger an interrupt when a button is pushed to wake a task or simply poll the button at a slower rate using a `delay_ms(10)`. To deal with metastable signals in hardware, it requires slow sampling and double flopping to avoid glitches, which usually is abstracted away from a programmer.  
+
+> 2. Compare the testing process using the logic analyzer with the behavioral simulation. How did the real-time testing with the AD2 differ from the purely simulated environment, and what are the key benefits of using the AD2/AD3 for testing your design? Were there any specific challenges or insights you gained from this hands-on testing that were not apparent during simulation?
+
+Real-time testing with the AD2 was quite similar to the behavioural test in simulation, except it allowed for quick and easy changes to the system inputs manually via the WaveForms GUI rather than having to hand-code each possible transition by hand. One key observation made is that keeping some logic inputs high by accident may lead to surprising, although intended consequences (such as triggering `SLEEP_STATE` almost immediately after switching into `IDLE_STATE` if `sleep` is held high). Using the AD2 honestly gave no further insights than the behavioural simulations or testing using other pins could have, aside from providing occasionally faulty signals. If I were to improve this lab, I would scrap the AD2 for lab 2 and perhaps use one of the keypads with an entity to push/pull signals to avoid the risks and wire spaghetti that comes with the AD2.
+
+>3. Propose potential enhancements to the pseudo random number generator design from Part 1, and briefly justify each enhancement in 1 or 2 sentences.
+
+The PRNG can be improved by adding another component to the LFSR and upgrading to the taus113 architecture. This increases the total period to $2^{113}-1$ cycles from the taus88's $2^{88}-1$.
+
+>4. Suggest other possible upgrades that could be added to the secure element to improve its functionality or safety. Provide a brief explanation for each suggestion.
+
+The secure element could be improved by making a new state that triggers after some amount of consecutive `attack_detected` signals without going into `SECURE_STATE`. This might disable the `rst` entirely and require some other process to recover. Additionally, it could be improved by using a handshaking protocol instead of an open-loop signal that triggers `SECURE_STATE`. 
+
+>5. What trade-offs did you consider when deciding whether to use a Mealy or Moore FSM for the secure element? How did this decision impact your design?
+
+A Mealy machine was an obvious choice fpr the secure element FSM as it no outputs depended on current inputs, rather, the outputs (`rgb` values) were determined by purely the state. This made the design simple and states mutually exclusive from eachother while also avoiding multiple LUTs depending on state and input. The black box could have been implemented as a Moore machine, but the amount of states it would require would be enormous compared to the actual design we have. However, it did require a tedious amount of tests for the 8 states that were devised, as each state had to be tested for `data` = 1 and `data` = 0.
+
 ## References
-> Cite any references used during the lab, including textbooks, websites, articles or AI Assistants.
+
+[1] M. Mézard and A. Montanari, *Information, Physics, and Computation*, Part A. Draft manuscript. [Online]. Available: [https://web.stanford.edu/~montanar/RESEARCH/BOOK/partA.pdf](https://web.stanford.edu/~montanar/RESEARCH/BOOK/partA.pdf)
+
+[2] P. L'Ecuyer, "Maximally equidistributed combined Tausworthe generators," *Math. Comput.*, vol. 65, no. 213, pp. 203–213, 1996.bit vectors with a period length of $2^{88} - 1$.
+
+[3] P. L'Ecuyer, "Tables of maximally equidistributed combined LFSR generators," *Math. Comput.*, vol. 68, no. 225, pp. 261–269, 1999.
+
 
 ## Team Contribution
-> Clearly indicate the specific contributions made by each team member in the lab, including design, simulation, implementation, and report writing.
 
+Peer programming and debugging was used in this lab, so exact numbers or percentages are not provided. Report was a collaborative process.
+
+Dion Walton: Design, simulation, implementation, report writing.
+
+Anahita Houshyar: Design, simulation, implementation, report writing.
