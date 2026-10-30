@@ -295,6 +295,8 @@ For sequence detection, when the detector was in state `110` and `data_in = '1'`
 > Summarize the outcomes of the lab, including any challenges encountered and how they were addressed. Discuss the effectiveness of the design and any potential improvements.
 
 In this lab we worked on designing and testing a Tausworthe pseudo-random number generator, a secure element FSM, upgrades to the FSM, and a reverse-engineered sequence detector. The simulation results matched the expected outputs for all three PRNG tests, all 18 secure element FSM tests, and all sequence detector tests. 
+The hardest part was making sure each `clk_en` button press advanced the sequence detector only once. The FSM requirements also needed clarification through repeated design updates. For the PRNG, the SRL and SLL operators did not work as expected with STD_LOGIC_VECTOR, so we used shift_right and shift_left with unsigned type conversions. 
+The setup could be improved by using secure cables to connect the Zybo board and breadboard to the Analog Discovery 2 oscilloscope, since loose connections made the setup less reliable.
 
 
 ## References
