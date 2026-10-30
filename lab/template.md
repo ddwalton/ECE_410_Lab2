@@ -321,6 +321,7 @@ The Tausworthe PRNG did not require any complex test cases, instead its function
 > Present the results of your implementation, comparing them with expected outcomes. Discuss any discrepancies and analyze the performance of the design.
 
 Tausworthe PRNG: The PRNG simulation was checked based on three things: the initial output, its update after clock edge, and how it response to reset. In the initialization stage the three Tausworthe registers load their seed values and their XOR produced the initial 32-bit output, 0x3C3C1090. After the rst changes from 1 to 0 the output changes and updates on successive rising clock edges. When reset is asserted, the generator returns to those starting values and the sequence begins again.
+
 | Test case | Expected result | Observed result |
 |---|---|---|
 | Initial state | `0x3C3C1090` | `0x3C3C1090` |
@@ -328,6 +329,17 @@ Tausworthe PRNG: The PRNG simulation was checked based on three things: the init
 | Reset asserted at a rising clock edge | Output returns to `0x3C3C1090` | Output returned to `0x3C3C1090` |
 
 All three test cases matched their expected results.
+
+As an additional metric of PRNG success, an entropy analysis was conducted over a set of simulation data obtained by omitting the reset assertion in the testbench. 147016 32-bit values were created. Using a vcd2csv converter (available: [GitHub](https://github.com/ddwalton/vcd2csv.git)) and a python program to test the Shannon entropy (see equation below) of each individual bit, the calculated byte entropy was found to be 7.9997 bits/byte (8 bits/byte would be ideal) -- which essentially means it would require just barely under 8 bits to compress the entire 147016 word long PRNG sequence. These results are quite good, and show that there is little to no biasing towards 0 or 1, or repeating patterns that can be extracted. This is indicative of a good, uniformly distributed set of values.
+
+Shannon entropy formula:
+
+$$
+H(X)=-\sum_{x\in{X}}p(x)\log(p(x))
+$$
+
+![alt text](images/prng_vs_time.png)
+The PRNG generated value (encoded as a 32-bit unsigned integer) vs. time can be seen in the graph above.
 
 Secure Element FSM Results: This section was simulated to verify the FSM transitions between the startup, idle, secure, sleep, and alarm states. The RGB outputs identify the current state. `001` for startup, `110` for idle, `010` for secure, `111` for sleep, and `100` for alarm. In the simulation, the observed RGB output matched the expected output in all 18 test cases.
 | State | RGB output | Indicated state |
