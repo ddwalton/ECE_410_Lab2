@@ -18,7 +18,8 @@ ARCHITECTURE test OF fsm_wrapper_tb IS
     SIGNAL rgb             : STD_LOGIC_VECTOR(2 DOWNTO 0);
     SIGNAL count_out       : UNSIGNED(3 DOWNTO 0);
 
-    CONSTANT clk_period    : time := 10 ns;
+    CONSTANT clk_period    : time := 0.25 sec;
+    -- set a small clock frequency generic for simulation to avoid waiting millions of cycles
     CONSTANT sim_clk_freq  : integer := 4; 
 BEGIN
     uut: ENTITY work.fsm_wrapper

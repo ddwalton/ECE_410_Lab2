@@ -14,17 +14,21 @@ ARCHITECTURE test OF black_box_tb IS
     SIGNAL seq_detected : STD_LOGIC;
 
     CONSTANT clk_period    : time := 10 ns;
-    CONSTANT c_COUNT_MAX   : natural := 125_000_000 / 10;
-    CONSTANT debounce_wait : time := (c_COUNT_MAX + 5) * clk_period;
+    CONSTANT c_SIM_COUNT   : natural := 10; -- small count for fast simulation
+    CONSTANT debounce_wait : time := (c_SIM_COUNT + 5) * clk_period;
 BEGIN
-    uut: ENTITY work.black_box PORT MAP (
-        clock        => clock,
-        data_in      => data_in,
-        clk_en       => clk_en,
-        data         => data,
-        leds         => leds,
-        seq_detected => seq_detected
-    );
+    uut: ENTITY work.black_box 
+        GENERIC MAP (
+            g_COUNT_MAX => c_SIM_COUNT
+        )
+        PORT MAP (
+            clock        => clock,
+            data_in      => data_in,
+            clk_en       => clk_en,
+            data         => data,
+            leds         => leds,
+            seq_detected => seq_detected
+        );
 
     gen_clk : PROCESS
     BEGIN
@@ -43,11 +47,11 @@ BEGIN
         assert data = '0' report "test 1: initial data output should be 0" severity error;
         assert leds = "001" report "test 1: initial next_state should be 001" severity error;
 
-        -- test debouncer glitch filtering
+        -- test debouncer glitch filtering (< 10 cycles)
         clk_en <= '1';
-        WAIT FOR 100 * clk_period;
+        WAIT FOR 5 * clk_period;
         clk_en <= '0';
-        WAIT FOR 100 * clk_period;
+        WAIT FOR 5 * clk_period;
         assert leds = "001" report "test 2: short clk_en glitch should be ignored" severity error;
 
         -- test transition state 000 -> 001

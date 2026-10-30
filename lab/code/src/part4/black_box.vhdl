@@ -3,6 +3,9 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 
 entity black_box is
+    generic (
+        g_COUNT_MAX : natural := 125_000_000 / 10 -- default for hardware synthesis
+    );
     port (
         clock : in STD_LOGIC;
         data_in : in STD_LOGIC;
@@ -15,8 +18,6 @@ end black_box;
 
 architecture rtl of black_box is
     -- max value to count to for debouncing logic
-    constant c_COUNT_MAX : natural := 125_000_000 / 10;
-
     signal curr_state : std_logic_vector(2 downto 0) := "000";
     signal next_state : std_logic_vector(2 downto 0) := "001";
     signal slow_clk_en : std_logic := '0'; -- for debouncing clk_en
@@ -57,7 +58,7 @@ begin
             
             -- counter-based debounce filter
             if (sync_1 /= slow_clk_en) then
-                if (count < c_COUNT_MAX) then
+                if (count < g_COUNT_MAX) then
                     count := count + 1;
                 else
                     slow_clk_en <= sync_1;
