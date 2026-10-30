@@ -384,5 +384,9 @@ A Mealy machine was an obvious choice fpr the secure element FSM as it no output
 
 
 ## Team Contribution
-> Clearly indicate the specific contributions made by each team member in the lab, including design, simulation, implementation, and report writing.
 
+Peer programming and debugging was used in this lab, so exact numbers or percentages are not provided. Report was a collaborative process.
+
+Dion Walton: Design, simulation, implementation, report writing.
+
+Anahita Houshyar: Design, simulation, implementation, report writing.
