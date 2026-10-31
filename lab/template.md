@@ -297,7 +297,6 @@ The Tausworthe PRNG did not require any complex test cases, instead its function
 [sim. 4] The above figure shows the simulation results for the black box re-implementation. More specifically, it focuses on the debouncing filter logic and state transition dynamics driven by the `clk_en` input. The waveform verifies that short glitches on `clk_en` lasting fewer than `g_COUNT_MAX` clock cycles are ignored, whereas a sustained high signal allows the internal counter to expire and assert `slow_clk_en`. This rising edge successfully triggers state transitions (updating `leds` via `curr_state`), and upon reaching state `"110"` with `data_in = '1'`, `seq_detected` correctly asserts high before clearing once the state resets back to `"000"`.
 
 ## Results 
-> Present the results of your implementation, comparing them with expected outcomes. Discuss any discrepancies and analyze the performance of the design.
 
 Tausworthe PRNG: The PRNG simulation was checked based on three things: the initial output, its update after clock edge, and how it response to reset. In the initialization stage the three Tausworthe registers load their seed values and their XOR produced the initial 32-bit output, 0x3C3C1090. After the rst changes from 1 to 0 the output changes and updates on successive rising clock edges. When reset is asserted, the generator returns to those starting values and the sequence begins again.
 
@@ -346,7 +345,6 @@ For sequence detection, when the detector was in state `110` and `data_in = '1'`
 
 
 ## Conclusion
-> Summarize the outcomes of the lab, including any challenges encountered and how they were addressed. Discuss the effectiveness of the design and any potential improvements.
 
 In this lab we worked on designing and testing a Tausworthe pseudo-random number generator, a secure element FSM, upgrades to the FSM, and a reverse-engineered sequence detector. The simulation results matched the expected outputs for all three PRNG tests, all 18 secure element FSM tests, and all sequence detector tests. 
 The hardest part was making sure each `clk_en` button press advanced the sequence detector only once. The FSM requirements also needed clarification through repeated design updates. For the PRNG, the SRL and SLL operators did not work as expected with STD_LOGIC_VECTOR, so we used shift_right and shift_left with unsigned type conversions. 
